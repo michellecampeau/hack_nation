@@ -17,8 +17,13 @@ export const createPersonSchema = z.object({
   role: z.string().optional(),
   tags: z.array(z.string()).optional(),
   relationshipState: relationshipStateSchema.optional().default("ok"),
-  lastContacted: z.string().optional(), // ISO date string when provided
-  notes: z.string().optional(),
+  lastContacted: z.string().optional(),
+  notes: z.string().optional(), // full text, no length limit
+  hometown: z.string().optional(),
+  birthday: z.string().optional(),
+  venmo: z.string().optional(),
+  universities: z.array(z.string()).optional(),
+  interests: z.array(z.string()).optional(),
   userId: z.string().optional(),
 });
 

@@ -72,7 +72,12 @@ model Person {
   tags              String?   // JSON array of strings
   relationshipState String    @default("ok") // ok | warm_up | do_not_contact
   lastContacted     DateTime?
-  notes             String?
+  notes             String?   // full text, no truncation
+  hometown          String?
+  birthday          String?
+  venmo             String?
+  universities      String?   // JSON array of strings
+  interests         String?   // JSON array of strings
   userId            String?
   user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   facts             Fact[]

@@ -36,6 +36,11 @@ export interface PersonRecord {
   relationshipState: string;
   lastContacted: Date | null;
   notes: string | null;
+  hometown: string | null;
+  birthday: string | null;
+  venmo: string | null;
+  universities: string[] | null;
+  interests: string[] | null;
   createdAt: Date;
   updatedAt: Date;
 }

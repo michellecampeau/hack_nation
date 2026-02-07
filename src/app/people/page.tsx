@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
-import { apiGet, apiPost, ApiError } from "@/lib/utils/api";
+import { apiGet, apiPost, apiDelete, ApiError } from "@/lib/utils/api";
 import { parseFileToContacts, type ImportRow } from "@/lib/import/parse-file";
 import type { PersonRecord } from "@/types";
 import { RELATIONSHIP_STATES } from "@/types";
@@ -34,12 +34,18 @@ export default function PeoplePage() {
     primaryEmail: "",
     phone: "",
     organization: "",
+    hometown: "",
     role: "",
     relationshipState: "ok" as string,
     notes: "",
     tags: "",
+    birthday: "",
+    venmo: "",
+    universities: "",
+    interests: "",
   });
   const [showImport, setShowImport] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -85,15 +91,15 @@ export default function PeoplePage() {
         primaryEmail: form.primaryEmail || undefined,
         phone: form.phone || undefined,
         organization: form.organization || undefined,
+        hometown: form.hometown || undefined,
         role: form.role || undefined,
         relationshipState: form.relationshipState,
         notes: form.notes || undefined,
-        tags: form.tags
-          ? form.tags
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : undefined,
+        tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        birthday: form.birthday || undefined,
+        venmo: form.venmo || undefined,
+        universities: form.universities ? form.universities.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        interests: form.interests ? form.interests.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       });
       const addedName = form.name;
       setForm({
@@ -101,10 +107,15 @@ export default function PeoplePage() {
         primaryEmail: "",
         phone: "",
         organization: "",
+        hometown: "",
         role: "",
         relationshipState: "ok",
         notes: "",
         tags: "",
+        birthday: "",
+        venmo: "",
+        universities: "",
+        interests: "",
       });
       setShowForm(false);
       setSuccess(`${addedName} added.`);
@@ -139,6 +150,22 @@ export default function PeoplePage() {
       .catch(() => setImportError("Could not parse file. Use CSV, JSON, or vCard (.vcf)."));
   };
 
+  const handleDeleteAll = async () => {
+    if (!confirm("Delete all contacts? This cannot be undone.")) return;
+    setDeletingAll(true);
+    setError(null);
+    try {
+      await apiDelete("/api/people");
+      setSuccess("All contacts deleted.");
+      setTimeout(() => setSuccess(null), 3000);
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to delete all");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const handleImportSubmit = async () => {
     setImportSubmitting(true);
     setError(null);
@@ -149,10 +176,15 @@ export default function PeoplePage() {
         primaryEmail: r.primaryEmail || undefined,
         phone: r.phone || undefined,
         organization: r.organization || undefined,
+        hometown: r.hometown || undefined,
         role: r.role || undefined,
         tags: r.tags,
         notes: r.notes || undefined,
         relationshipState: validRelationship(r.relationshipState) ?? "ok",
+        birthday: r.birthday || undefined,
+        venmo: r.venmo || undefined,
+        universities: r.universities,
+        interests: r.interests,
       }));
       const res = await apiPost<{
         created: number;
@@ -193,6 +225,16 @@ export default function PeoplePage() {
           <Button onClick={() => setShowForm((v) => !v)}>
             {showForm ? "Cancel" : "Add person"}
           </Button>
+          {people.length > 0 && (
+            <Button
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={deletingAll}
+              onClick={handleDeleteAll}
+            >
+              {deletingAll ? "Deleting…" : "Delete all"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -311,6 +353,17 @@ export default function PeoplePage() {
                 />
               </div>
               <div>
+                <Label htmlFor="hometown" className="mb-1 block">
+                  Hometown
+                </Label>
+                <Input
+                  id="hometown"
+                  value={form.hometown}
+                  onChange={(e) => setForm((f) => ({ ...f, hometown: e.target.value }))}
+                  placeholder="City, State"
+                />
+              </div>
+              <div>
                 <Label htmlFor="role" className="mb-1 block">
                   Role
                 </Label>
@@ -337,6 +390,50 @@ export default function PeoplePage() {
                   ))}
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="birthday" className="mb-1 block">
+                  Birthday
+                </Label>
+                <Input
+                  id="birthday"
+                  value={form.birthday}
+                  onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
+                  placeholder="YYYY-MM-DD or MM-DD"
+                />
+              </div>
+              <div>
+                <Label htmlFor="venmo" className="mb-1 block">
+                  Venmo
+                </Label>
+                <Input
+                  id="venmo"
+                  value={form.venmo}
+                  onChange={(e) => setForm((f) => ({ ...f, venmo: e.target.value }))}
+                  placeholder="@username"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="universities" className="mb-1 block">
+                  Universities (comma-separated)
+                </Label>
+                <Input
+                  id="universities"
+                  value={form.universities}
+                  onChange={(e) => setForm((f) => ({ ...f, universities: e.target.value }))}
+                  placeholder="School A, School B"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="interests" className="mb-1 block">
+                  Interests (comma-separated)
+                </Label>
+                <Input
+                  id="interests"
+                  value={form.interests}
+                  onChange={(e) => setForm((f) => ({ ...f, interests: e.target.value }))}
+                  placeholder="design, running, music"
+                />
+              </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="tags" className="mb-1 block">
                   Tags (comma-separated)
@@ -352,11 +449,13 @@ export default function PeoplePage() {
                 <Label htmlFor="notes" className="mb-1 block">
                   Notes
                 </Label>
-                <Input
+                <textarea
                   id="notes"
+                  rows={4}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="Met at conference..."
+                  placeholder="Full notes (no length limit)..."
                 />
               </div>
               <div className="sm:col-span-2">

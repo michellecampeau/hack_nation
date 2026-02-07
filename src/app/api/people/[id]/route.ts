@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { updatePersonSchema } from "@/lib/schemas/chief-of-staff";
 import { safeValidateData } from "@/lib/utils/validators";
 
-function parseTags(tags: string | null): string[] | null {
-  if (tags == null || tags === "") return null;
+function parseJsonArray(s: string | null): string[] | null {
+  if (s == null || s === "") return null;
   try {
-    const parsed = JSON.parse(tags) as unknown;
+    const parsed = JSON.parse(s) as unknown;
     return Array.isArray(parsed) ? parsed : null;
   } catch {
     return null;
@@ -46,12 +46,26 @@ export async function PATCH(
         : null;
     if (data.notes !== undefined) updatePayload.notes = data.notes ?? null;
     if (data.userId !== undefined) updatePayload.userId = data.userId ?? null;
+    if (data.hometown !== undefined) updatePayload.hometown = data.hometown ?? null;
+    if (data.birthday !== undefined) updatePayload.birthday = data.birthday ?? null;
+    if (data.venmo !== undefined) updatePayload.venmo = data.venmo ?? null;
+    if (data.universities !== undefined)
+      updatePayload.universities = data.universities?.length ? JSON.stringify(data.universities) : null;
+    if (data.interests !== undefined)
+      updatePayload.interests = data.interests?.length ? JSON.stringify(data.interests) : null;
 
     const person = await prisma.person.update({
       where: { id },
       data: updatePayload,
     });
-    return NextResponse.json({ data: { ...person, tags: parseTags(person.tags) } });
+    return NextResponse.json({
+      data: {
+        ...person,
+        tags: parseJsonArray(person.tags),
+        universities: parseJsonArray(person.universities),
+        interests: parseJsonArray(person.interests),
+      },
+    });
   } catch (e) {
     if (e && typeof e === "object" && "code" in e && e.code === "P2025") {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
@@ -74,11 +88,34 @@ export async function GET(
     if (!person) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
-    const { tags, ...rest } = person;
+    const { tags, universities, interests, ...rest } = person;
     return NextResponse.json({
-      data: { ...rest, tags: parseTags(tags), facts: person.facts },
+      data: {
+        ...rest,
+        tags: parseJsonArray(tags),
+        universities: parseJsonArray(universities),
+        interests: parseJsonArray(interests),
+        facts: person.facts,
+      },
     });
   } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await prisma.person.delete({ where: { id } });
+    return NextResponse.json({ deleted: true });
+  } catch (e) {
+    if (e && typeof e === "object" && "code" in e && e.code === "P2025") {
+      return NextResponse.json({ error: "Person not found" }, { status: 404 });
+    }
     console.error(e);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

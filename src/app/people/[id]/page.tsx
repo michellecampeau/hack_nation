@@ -41,10 +41,15 @@ export default function PersonDetailPage() {
         primaryEmail: res.data.primaryEmail ?? "",
         phone: res.data.phone ?? "",
         organization: res.data.organization ?? "",
+        hometown: res.data.hometown ?? "",
         role: res.data.role ?? "",
         relationshipState: res.data.relationshipState,
         notes: res.data.notes ?? "",
         tags: (res.data.tags ?? []).join(", "),
+        birthday: res.data.birthday ?? "",
+        venmo: res.data.venmo ?? "",
+        universities: (res.data.universities ?? []).join(", "),
+        interests: (res.data.interests ?? []).join(", "),
       });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to load person");
@@ -68,15 +73,15 @@ export default function PersonDetailPage() {
         primaryEmail: editForm.primaryEmail || undefined,
         phone: editForm.phone || undefined,
         organization: editForm.organization || undefined,
+        hometown: editForm.hometown || undefined,
         role: editForm.role || undefined,
         relationshipState: editForm.relationshipState,
         notes: editForm.notes || undefined,
-        tags: editForm.tags
-          ? editForm.tags
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : undefined,
+        tags: editForm.tags ? editForm.tags.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        birthday: editForm.birthday || undefined,
+        venmo: editForm.venmo || undefined,
+        universities: editForm.universities ? editForm.universities.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        interests: editForm.interests ? editForm.interests.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       });
       setEditing(false);
       setSuccess("Contact updated.");
@@ -206,6 +211,41 @@ export default function PersonDetailPage() {
                   ))}
                 </Select>
               </div>
+              <div>
+                <Label className="mb-1 block">Hometown</Label>
+                <Input
+                  value={editForm.hometown}
+                  onChange={(e) => setEditForm((f) => ({ ...f, hometown: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block">Birthday</Label>
+                <Input
+                  value={editForm.birthday}
+                  onChange={(e) => setEditForm((f) => ({ ...f, birthday: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block">Venmo</Label>
+                <Input
+                  value={editForm.venmo}
+                  onChange={(e) => setEditForm((f) => ({ ...f, venmo: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="mb-1 block">Universities (comma-separated)</Label>
+                <Input
+                  value={editForm.universities}
+                  onChange={(e) => setEditForm((f) => ({ ...f, universities: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="mb-1 block">Interests (comma-separated)</Label>
+                <Input
+                  value={editForm.interests}
+                  onChange={(e) => setEditForm((f) => ({ ...f, interests: e.target.value }))}
+                />
+              </div>
               <div className="sm:col-span-2">
                 <Label className="mb-1 block">Tags (comma-separated)</Label>
                 <Input
@@ -215,7 +255,9 @@ export default function PersonDetailPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label className="mb-1 block">Notes</Label>
-                <Input
+                <textarea
+                  rows={5}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={editForm.notes}
                   onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                 />
@@ -248,6 +290,12 @@ export default function PersonDetailPage() {
                   <dd>{person.organization}</dd>
                 </div>
               )}
+              {person.hometown && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Hometown</dt>
+                  <dd>{person.hometown}</dd>
+                </div>
+              )}
               {person.role && (
                 <div>
                   <dt className="text-sm text-muted-foreground">Role</dt>
@@ -258,6 +306,30 @@ export default function PersonDetailPage() {
                 <dt className="text-sm text-muted-foreground">Relationship</dt>
                 <dd className="capitalize">{person.relationshipState.replace("_", " ")}</dd>
               </div>
+              {person.birthday && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Birthday</dt>
+                  <dd>{person.birthday}</dd>
+                </div>
+              )}
+              {person.venmo && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Venmo</dt>
+                  <dd>{person.venmo}</dd>
+                </div>
+              )}
+              {person.universities && person.universities.length > 0 && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm text-muted-foreground">Universities</dt>
+                  <dd>{person.universities.join(", ")}</dd>
+                </div>
+              )}
+              {person.interests && person.interests.length > 0 && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm text-muted-foreground">Interests</dt>
+                  <dd>{person.interests.join(", ")}</dd>
+                </div>
+              )}
               {person.tags && person.tags.length > 0 && (
                 <div className="sm:col-span-2">
                   <dt className="text-sm text-muted-foreground">Tags</dt>
@@ -267,7 +339,11 @@ export default function PersonDetailPage() {
               {person.notes && (
                 <div className="sm:col-span-2">
                   <dt className="text-sm text-muted-foreground">Notes</dt>
-                  <dd className="whitespace-pre-wrap">{person.notes}</dd>
+                  <dd className="min-h-[4rem]">
+                    <div className="mt-1 max-h-none overflow-visible rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                      {person.notes}
+                    </div>
+                  </dd>
                 </div>
               )}
             </dl>

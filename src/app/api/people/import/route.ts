@@ -13,6 +13,11 @@ type PersonCreateData = {
   relationshipState?: string;
   lastContacted?: string | null;
   notes?: string | null;
+  hometown?: string | null;
+  birthday?: string | null;
+  venmo?: string | null;
+  universities?: string[] | null;
+  interests?: string[] | null;
   userId?: string | null;
 };
 
@@ -31,6 +36,11 @@ function toDbRow(data: PersonCreateData) {
     relationshipState: rel,
     lastContacted: data.lastContacted ? new Date(data.lastContacted) : null,
     notes: data.notes ?? null,
+    hometown: data.hometown ?? null,
+    birthday: data.birthday ?? null,
+    venmo: data.venmo ?? null,
+    universities: data.universities?.length ? JSON.stringify(data.universities) : null,
+    interests: data.interests?.length ? JSON.stringify(data.interests) : null,
     userId: data.userId ?? null,
   };
 }

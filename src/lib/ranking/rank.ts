@@ -1,11 +1,18 @@
 import type { RankedEntry } from "@/types";
 
+export interface ProfileChunk {
+  label: string;
+  text: string;
+}
+
 export interface PersonWithFacts {
   id: string;
   name: string;
   relationshipState: string;
   lastContacted: Date | null;
   facts: Array<{ type: string; value: string }>;
+  /** Searchable profile fields (interests, notes, organization, etc.) for ranking. */
+  profileChunks: ProfileChunk[];
 }
 
 const RELATIONSHIP_WEIGHT: Record<string, number> = {
@@ -18,7 +25,7 @@ const MAX_DAYS_RECENCY = 365;
 const TOP_N = 20;
 
 /**
- * Deterministic ranking: keyword match on facts + recency + relationship_state.
+ * Deterministic ranking: keyword match on facts + profile (interests, notes, etc.) + recency + relationship_state.
  * Excludes do_not_contact. Returns top N with explanations.
  */
 export function rankPeople(
@@ -44,6 +51,18 @@ export function rankPeople(
           if (valueLower.includes(term)) {
             matchScore += 1;
             matchReasons.push(`Matched "${fact.type}": ${fact.value.slice(0, 60)}${fact.value.length > 60 ? "…" : ""}`);
+          }
+        }
+      }
+
+      const profileChunks = person.profileChunks ?? [];
+      for (const chunk of profileChunks) {
+        const textLower = chunk.text.toLowerCase();
+        for (const term of terms) {
+          if (textLower.includes(term)) {
+            matchScore += 1;
+            const snippet = chunk.text.slice(0, 60) + (chunk.text.length > 60 ? "…" : "");
+            matchReasons.push(`Matched ${chunk.label}: ${snippet}`);
           }
         }
       }

@@ -33,13 +33,37 @@ export async function POST(request: Request) {
           })
         : people;
 
-    const peopleWithFacts = filtered.map((p) => ({
-      id: p.id,
-      name: p.name,
-      relationshipState: p.relationshipState,
-      lastContacted: p.lastContacted,
-      facts: p.facts.map((f) => ({ type: f.type, value: f.value })),
-    }));
+    const peopleWithFacts = filtered.map((p) => {
+      const parseJsonArray = (raw: string | null): string[] => {
+        if (!raw?.trim()) return [];
+        try {
+          const arr = JSON.parse(raw) as unknown;
+          return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      };
+      const interests = parseJsonArray(p.interests);
+      const tags = parseJsonArray(p.tags);
+      const universities = parseJsonArray(p.universities);
+      const profileChunks: Array<{ label: string; text: string }> = [];
+      if (interests.length) profileChunks.push({ label: "interests", text: interests.join(", ") });
+      if (p.notes?.trim()) profileChunks.push({ label: "notes", text: p.notes.trim() });
+      if (p.organization?.trim()) profileChunks.push({ label: "organization", text: p.organization.trim() });
+      if (p.role?.trim()) profileChunks.push({ label: "role", text: p.role.trim() });
+      if (p.hometown?.trim()) profileChunks.push({ label: "hometown", text: p.hometown.trim() });
+      if (tags.length) profileChunks.push({ label: "tags", text: tags.join(", ") });
+      if (universities.length) profileChunks.push({ label: "universities", text: universities.join(", ") });
+
+      return {
+        id: p.id,
+        name: p.name,
+        relationshipState: p.relationshipState,
+        lastContacted: p.lastContacted,
+        facts: p.facts.map((f) => ({ type: f.type, value: f.value })),
+        profileChunks,
+      };
+    });
 
     const ranked = rankPeople(peopleWithFacts, query);
     return NextResponse.json({ ranked, query });

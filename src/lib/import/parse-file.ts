@@ -14,6 +14,11 @@ export interface ImportRow {
   tags?: string[];
   notes?: string;
   relationshipState?: string;
+  hometown?: string;
+  birthday?: string;
+  venmo?: string;
+  universities?: string[];
+  interests?: string[];
 }
 
 const CSV_HEADER_MAP: Record<string, keyof ImportRow> = {
@@ -42,6 +47,11 @@ const CSV_HEADER_MAP: Record<string, keyof ImportRow> = {
   note: "notes",
   relationship: "relationshipState",
   "relationship state": "relationshipState",
+  hometown: "hometown",
+  birthday: "birthday",
+  venmo: "venmo",
+  universities: "universities",
+  interests: "interests",
 };
 
 function parseCsvLine(line: string): string[] {
@@ -122,6 +132,19 @@ export function parseCsvToContacts(csvText: string): ImportRow[] {
       tags: tags?.length ? tags : undefined,
       notes: row["notes"] ?? row["note"] ?? undefined,
       relationshipState: row["relationship"] ?? row["relationship state"] ?? undefined,
+      hometown: row["hometown"] ?? undefined,
+      birthday: row["birthday"] ?? undefined,
+      venmo: row["venmo"] ?? undefined,
+      universities: (() => {
+        const raw = row["universities"] ?? row["university"];
+        const arr = raw ? raw.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [];
+        return arr.length ? arr : undefined;
+      })(),
+      interests: (() => {
+        const raw = row["interests"] ?? row["interest"];
+        const arr = raw ? raw.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [];
+        return arr.length ? arr : undefined;
+      })(),
     });
   }
   return result.filter((r) => r.name && r.name !== "Unknown");
@@ -143,7 +166,19 @@ export function parseJsonToContacts(jsonText: string): ImportRow[] {
               .map((s) => s.trim())
               .filter(Boolean)
           : undefined;
-      return {
+      const univ = o.universities;
+    const univArr = Array.isArray(univ)
+      ? univ.map((x) => (typeof x === "string" ? x : String(x)))
+      : typeof univ === "string"
+        ? univ.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    const intr = o.interests;
+    const intrArr = Array.isArray(intr)
+      ? intr.map((x) => (typeof x === "string" ? x : String(x)))
+      : typeof intr === "string"
+        ? intr.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    return {
         name: str(o.name) ?? "Unknown",
         primaryEmail: str(o.primaryEmail ?? o.email),
         phone: str(o.phone),
@@ -152,6 +187,11 @@ export function parseJsonToContacts(jsonText: string): ImportRow[] {
         tags: tagsArr?.length ? tagsArr : undefined,
         notes: str(o.notes),
         relationshipState: str(o.relationshipState ?? o.relationship),
+        hometown: str(o.hometown),
+        birthday: str(o.birthday),
+        venmo: str(o.venmo),
+        universities: univArr?.length ? univArr : undefined,
+        interests: intrArr?.length ? intrArr : undefined,
       };
     })
     .filter((r) => r.name && r.name !== "Unknown");
@@ -159,12 +199,25 @@ export function parseJsonToContacts(jsonText: string): ImportRow[] {
 
 /**
  * Parse vCard (.vcf) text into ImportRow[].
- * Handles line folding (RFC 2426), FN, N, EMAIL, TEL, ORG, TITLE, NOTE.
+ * Handles line folding, FN, N, EMAIL, TEL, ORG, ADR, BDAY, TITLE, NOTE (full text).
+ * ORG: if value contains ";" then first part = hometown, rest = organization.
+ * ADR: locality (4th component) used as hometown if no hometown from ORG.
+ * NOTE: all NOTE lines concatenated (no truncation).
  */
+/**
+ * Unfold vCard text: standard folding (newline + space/tab) and quoted-printable
+ * soft line breaks (=\r\n or =\n) so continued lines are joined and no trailing "=" remains.
+ */
+function unfoldVcf(vcfText: string): string {
+  let t = vcfText.replace(/\r\n|\r/g, "\n");
+  t = t.replace(/=\n/g, ""); // quoted-printable soft line break
+  t = t.replace(/\n[ \t]/g, ""); // standard vCard line folding (newline + space/tab)
+  return t;
+}
+
 export function parseVcfToContacts(vcfText: string): ImportRow[] {
   const result: ImportRow[] = [];
-  // Unfold lines: lines that start with space or tab continue the previous line
-  const unfolded = vcfText.replace(/\r\n[ \t]|\n[ \t]|\r[ \t]/g, "").replace(/\r\n|\r/g, "\n");
+  const unfolded = unfoldVcf(vcfText);
   const blocks = unfolded.split(/\bBEGIN:VCARD\b/i).filter((b) => b.trim());
   for (const block of blocks) {
     const inner = block.replace(/\bEND:VCARD\b.*/is, "").trim();
@@ -180,7 +233,9 @@ export function parseVcfToContacts(vcfText: string): ImportRow[] {
         .replace(/\\n/g, "\n");
       const key = keyPart.split(";")[0];
       if (!key) continue;
-      if (key === "EMAIL" && !fields["EMAIL"]) fields["EMAIL"] = value;
+      if (key === "NOTE") {
+        fields["NOTE"] = fields["NOTE"] ? fields["NOTE"] + "\n" + value : value;
+      } else if (key === "EMAIL" && !fields["EMAIL"]) fields["EMAIL"] = value;
       else if (key === "EMAIL" && fields["EMAIL"]) continue;
       else if (key === "TEL" && !fields["TEL"]) fields["TEL"] = value;
       else if (key === "TEL" && fields["TEL"]) continue;
@@ -188,13 +243,39 @@ export function parseVcfToContacts(vcfText: string): ImportRow[] {
     }
     const name = fields["FN"] ?? fields["N"]?.replace(/;+/g, " ").trim() ?? "Unknown";
     if (!name || name === "Unknown") continue;
+    const orgRaw = fields["ORG"]?.trim();
+    let hometown = fields["ADR"]
+      ? (() => {
+          const parts = fields["ADR"].split(";").map((p) => p.trim());
+          return parts[3] ?? undefined;
+        })()
+      : undefined;
+    let organization: string | undefined;
+    if (orgRaw) {
+      const orgParts = orgRaw.split(";").map((p) => p.trim()).filter(Boolean);
+      if (orgParts.length >= 2) {
+        hometown = hometown ?? orgParts[0];
+        organization = orgParts.slice(1).join("; ");
+      } else {
+        organization = orgRaw;
+      }
+    }
+    const univRaw = fields["X-UNIVERSITIES"] ?? fields["X-UNIVERSITY"];
+    const universities = univRaw?.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+    const interestsRaw = fields["X-INTERESTS"] ?? fields["X-INTEREST"];
+    const interests = interestsRaw?.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
     result.push({
       name,
       primaryEmail: fields["EMAIL"] || undefined,
       phone: fields["TEL"] || undefined,
-      organization: fields["ORG"] || undefined,
+      organization,
       role: fields["TITLE"] || undefined,
       notes: fields["NOTE"] || undefined,
+      hometown,
+      birthday: fields["BDAY"] || undefined,
+      venmo: fields["X-VENMO"] ?? fields["VENMO"] ?? undefined,
+      universities: universities?.length ? universities : undefined,
+      interests: interests?.length ? interests : undefined,
     });
   }
   return result.filter((r) => r.name && r.name !== "Unknown");
