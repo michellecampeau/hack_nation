@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,26 @@ import { apiPost, ApiError } from "@/lib/utils/api";
 import type { RankResponse } from "@/types";
 
 export default function RankPage() {
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RankResponse | null>(null);
+
+  // When returning from person detail with ?query= in URL, restore and run search
+  useEffect(() => {
+    const q = searchParams.get("query");
+    if (q?.trim()) {
+      setQuery(q);
+      setLoading(true);
+      setError(null);
+      setResult(null);
+      apiPost<RankResponse>("/api/rank", { query: q.trim() })
+        .then((res) => setResult(res))
+        .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to rank"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +108,7 @@ export default function RankPage() {
                     <span className="font-mono text-sm text-muted-foreground">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <Link
-                        href={`/people/${entry.personId}`}
+                        href={`/people/${entry.personId}?returnTo=/rank&query=${encodeURIComponent(result.query)}`}
                         className="font-medium hover:underline"
                       >
                         {entry.personName}
@@ -101,7 +118,9 @@ export default function RankPage() {
                         Score: {entry.score.toFixed(2)}
                       </p>
                     </div>
-                    <Link href={`/people/${entry.personId}`}>
+                    <Link
+                      href={`/people/${entry.personId}?returnTo=/rank&query=${encodeURIComponent(result.query)}`}
+                    >
                       <Button variant="ghost" size="sm">
                         View →
                       </Button>

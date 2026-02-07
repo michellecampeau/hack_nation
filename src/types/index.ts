@@ -83,6 +83,8 @@ export interface RankResponse {
 export interface ComposeRequest {
   personId: string;
   goal?: string;
+  format?: "email" | "text";
+  refinement?: string;
 }
 
 export interface ComposeResponse {

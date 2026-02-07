@@ -6,23 +6,77 @@ import { safeValidateData } from "@/lib/utils/validators";
 
 const COMPOSE_MODEL = process.env.OPENAI_COMPOSE_MODEL ?? "gpt-4o-mini";
 
-function buildComposePrompt(
-  name: string,
-  facts: Array<{ type: string; value: string }>,
-  goal?: string
-): string {
-  const factsBlock = facts.map((f) => `- ${f.type}: ${f.value}`).join("\n");
-  const goalLine = goal ? `\nThe user's goal or context for this outreach: ${goal}` : "";
-  return `You are helping prepare a thoughtful, human outreach to a contact. Given the following person and known facts, produce a short bio, 2-4 connection points (why reach out now / what you have in common), and one concise outreach message (email or DM style). Be specific and warm; avoid generic flattery.
+function parseJsonArray(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const arr = JSON.parse(raw) as unknown;
+    return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
 
-Person: ${name}
-Known facts:
+function buildProfileBlock(person: {
+  name: string;
+  organization?: string | null;
+  role?: string | null;
+  notes?: string | null;
+  hometown?: string | null;
+  interests?: string | null;
+  universities?: string | null;
+  tags?: string | null;
+  birthday?: string | null;
+  venmo?: string | null;
+}): string {
+  const lines: string[] = [];
+  lines.push(`Name: ${person.name}`);
+  if (person.organization?.trim()) lines.push(`Organization: ${person.organization.trim()}`);
+  if (person.role?.trim()) lines.push(`Role: ${person.role.trim()}`);
+  if (person.hometown?.trim()) lines.push(`Hometown: ${person.hometown.trim()}`);
+  const interests = parseJsonArray(person.interests);
+  if (interests.length) lines.push(`Interests: ${interests.join(", ")}`);
+  const universities = parseJsonArray(person.universities);
+  if (universities.length) lines.push(`Universities: ${universities.join(", ")}`);
+  const tags = parseJsonArray(person.tags);
+  if (tags.length) lines.push(`Tags: ${tags.join(", ")}`);
+  if (person.birthday?.trim()) lines.push(`Birthday: ${person.birthday.trim()}`);
+  if (person.venmo?.trim()) lines.push(`Venmo: ${person.venmo.trim()}`);
+  if (person.notes?.trim()) lines.push(`Notes: ${person.notes.trim()}`);
+  return lines.join("\n");
+}
+
+function buildComposePrompt(
+  profileBlock: string,
+  facts: Array<{ type: string; value: string }>,
+  goal?: string,
+  format: "email" | "text" = "email",
+  refinement?: string
+): string {
+  const factsBlock =
+    facts.length > 0 ? facts.map((f) => `- ${f.type}: ${f.value}`).join("\n") : "(none)";
+  const goalLine = goal ? `\nThe user's goal or context for this outreach: ${goal}` : "";
+  const refinementLine =
+    refinement?.trim() ?
+      `\nThe user wants you to incorporate this additional instruction when generating the message: ${refinement.trim()}` :
+      "";
+  const formatInstruction =
+    format === "text"
+      ? "Format the message as a short text message or DM: concise, casual, 1-3 short sentences. No subject line or email sign-off."
+      : "Format the message as an email: clear subject line, 2-4 short paragraphs, appropriate greeting and sign-off.";
+  return `You are helping prepare a thoughtful, human outreach to a contact. Use ONLY the information provided below. Do not invent or assume any details about their career, industry, work experience, or background that are not explicitly stated. If something is not mentioned, do not include it in the bio or message.
+
+Profile (use only this information):
+${profileBlock}
+
+Known facts (expertise, interests, shared context — use only these):
 ${factsBlock}${goalLine}
 
+Produce a short bio, 2-4 connection points (why reach out now / what you have in common), and one outreach message. Be specific and warm; only reference details that appear above.${refinementLine} ${formatInstruction}
+
 Respond with a single JSON object with exactly these keys (all strings; connectionPoints is an array of strings):
-- "bio": 1-2 sentence summary of who they are and relevance
-- "connectionPoints": array of 2-4 short bullets or sentences
-- "message": the full outreach message (2-4 short paragraphs max)`;
+- "bio": 1-2 sentence summary of who they are based ONLY on the profile and facts above (include interests, hometown, organization, etc. only if listed)
+- "connectionPoints": array of 2-4 short bullets or sentences drawn from the information above
+- "message": the full outreach message, formatted as requested above`;
 }
 
 export async function POST(request: Request) {
@@ -46,7 +100,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { personId, goal } = parsed.data;
+    const { personId, goal, format = "email", refinement } = parsed.data;
 
     const person = await prisma.person.findUnique({
       where: { id: personId },
@@ -56,10 +110,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
+    const profileBlock = buildProfileBlock(person);
     const prompt = buildComposePrompt(
-      person.name,
+      profileBlock,
       person.facts.map((f) => ({ type: f.type, value: f.value })),
-      goal
+      goal,
+      format,
+      refinement
     );
 
     const openai = new OpenAI({ apiKey });

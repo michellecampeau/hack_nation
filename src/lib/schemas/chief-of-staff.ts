@@ -46,6 +46,8 @@ export const rankRequestSchema = z.object({
 export const composeRequestSchema = z.object({
   personId: z.string().min(1, "personId is required"),
   goal: z.string().optional(),
+  format: z.enum(["email", "text"]).optional(), // email = formal email; text = short DM/SMS style
+  refinement: z.string().optional(), // additional instruction to revise how the message should be generated
 });
 
 export const updatePersonSchema = createPersonSchema.partial();

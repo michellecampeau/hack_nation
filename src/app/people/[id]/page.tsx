@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,21 @@ interface PersonDetail extends PersonRecord {
 
 export default function PersonDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const returnTo = searchParams.get("returnTo");
+  const returnQuery = searchParams.get("query");
+  const backHref = returnTo
+    ? returnTo === "/compose"
+      ? `/compose?personId=${id}`
+      : `${returnTo}${returnQuery ? `?query=${encodeURIComponent(returnQuery)}` : ""}`
+    : "/people";
+  const backLabel =
+    returnTo === "/rank"
+      ? "Back to search results"
+      : returnTo === "/compose"
+        ? "Back to compose"
+        : "Back to People";
   const [person, setPerson] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,8 +134,8 @@ export default function PersonDetailPage() {
   if (loading || !person) {
     return (
       <div className="space-y-4">
-        <Link href="/people" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back to People
+        <Link href={backHref} className="text-sm text-muted-foreground hover:text-foreground">
+          ← {backLabel}
         </Link>
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
@@ -135,8 +149,8 @@ export default function PersonDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/people" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back to People
+        <Link href={backHref} className="text-sm text-muted-foreground hover:text-foreground">
+          ← {backLabel}
         </Link>
       </div>
 
