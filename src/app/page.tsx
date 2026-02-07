@@ -49,11 +49,6 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Run locally with <code className="rounded bg-muted px-1.5 py-0.5">npm run dev</code> or
-        <code className="ml-1.5 rounded bg-muted px-1.5 py-0.5">npm run start</code>. Data stays in
-        your SQLite database.
-      </p>
     </div>
   );
 }

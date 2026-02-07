@@ -22,11 +22,11 @@ const RELATIONSHIP_WEIGHT: Record<string, number> = {
 };
 
 const MAX_DAYS_RECENCY = 365;
-const TOP_N = 20;
+const MIN_SCORE = 2;
 
 /**
  * Deterministic ranking: keyword match on facts + profile (interests, notes, etc.) + recency + relationship_state.
- * Excludes do_not_contact. Returns top N with explanations.
+ * Excludes do_not_contact. Returns all people with score > 2, sorted by score descending.
  */
 export function rankPeople(
   people: PersonWithFacts[],
@@ -92,6 +92,7 @@ export function rankPeople(
     })
     .filter((x): x is RankedEntry => x !== null);
 
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, TOP_N);
+  const aboveMin = scored.filter((e) => e.score > MIN_SCORE);
+  aboveMin.sort((a, b) => b.score - a.score);
+  return aboveMin;
 }
