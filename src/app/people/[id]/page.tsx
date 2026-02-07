@@ -6,12 +6,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
 import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/utils/api";
 import type { PersonRecord, FactRecord } from "@/types";
 import { RELATIONSHIP_STATES, FACT_TYPES } from "@/types";
 
 interface PersonDetail extends PersonRecord {
-  tags?: string[] | null;
   facts: FactRecord[];
 }
 
@@ -26,6 +28,7 @@ export default function PersonDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [factForm, setFactForm] = useState({ type: "expertise" as string, value: "" });
   const [factSubmitting, setFactSubmitting] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -76,6 +79,8 @@ export default function PersonDetailPage() {
           : undefined,
       });
       setEditing(false);
+      setSuccess("Contact updated.");
+      setTimeout(() => setSuccess(null), 3000);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to update");
@@ -97,6 +102,8 @@ export default function PersonDetailPage() {
         author: "me",
       });
       setFactForm({ type: "expertise", value: "" });
+      setSuccess("Fact added.");
+      setTimeout(() => setSuccess(null), 3000);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to add fact");
@@ -128,31 +135,35 @@ export default function PersonDetailPage() {
         </Link>
       </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="destructive">{error}</Alert>}
+      {success && <Alert variant="success">{success}</Alert>}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Contact</CardTitle>
-          <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
-            {editing ? "Cancel" : "Edit"}
-          </Button>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <CardTitle>{person.name}</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/compose?personId=${id}`}>
+              <Button variant="outline" size="sm">
+                Compose message
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
+              {editing ? "Cancel" : "Edit"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {editing ? (
             <form onSubmit={handleSaveEdit} className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium">Name</label>
+                <Label className="mb-1 block">Name</Label>
                 <Input
                   value={editForm.name}
                   onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Email</label>
+                <Label className="mb-1 block">Email</Label>
                 <Input
                   type="email"
                   value={editForm.primaryEmail}
@@ -160,30 +171,29 @@ export default function PersonDetailPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Phone</label>
+                <Label className="mb-1 block">Phone</Label>
                 <Input
                   value={editForm.phone}
                   onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Organization</label>
+                <Label className="mb-1 block">Organization</Label>
                 <Input
                   value={editForm.organization}
                   onChange={(e) => setEditForm((f) => ({ ...f, organization: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Role</label>
+                <Label className="mb-1 block">Role</Label>
                 <Input
                   value={editForm.role}
                   onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Relationship</label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                <Label className="mb-1 block">Relationship</Label>
+                <Select
                   value={editForm.relationshipState}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, relationshipState: e.target.value }))
@@ -194,17 +204,17 @@ export default function PersonDetailPage() {
                       {s}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Tags (comma-separated)</label>
+                <Label className="mb-1 block">Tags (comma-separated)</Label>
                 <Input
                   value={editForm.tags}
                   onChange={(e) => setEditForm((f) => ({ ...f, tags: e.target.value }))}
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Notes</label>
+                <Label className="mb-1 block">Notes</Label>
                 <Input
                   value={editForm.notes}
                   onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
@@ -276,9 +286,8 @@ export default function PersonDetailPage() {
         <CardContent className="space-y-4">
           <form onSubmit={handleAddFact} className="flex flex-wrap items-end gap-2">
             <div className="min-w-[140px]">
-              <label className="mb-1 block text-sm font-medium">Type</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <Label className="mb-1 block">Type</Label>
+              <Select
                 value={factForm.type}
                 onChange={(e) => setFactForm((f) => ({ ...f, type: e.target.value }))}
               >
@@ -287,10 +296,10 @@ export default function PersonDetailPage() {
                     {t.replace("_", " ")}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="min-w-[200px] flex-1">
-              <label className="mb-1 block text-sm font-medium">Value</label>
+              <Label className="mb-1 block">Value</Label>
               <Input
                 placeholder="e.g. Design systems, React"
                 value={factForm.value}
