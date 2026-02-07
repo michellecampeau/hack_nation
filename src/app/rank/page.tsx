@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert } from "@/components/ui/alert";
 import { apiPost, ApiError } from "@/lib/utils/api";
 import type { RankResponse } from "@/types";
 
@@ -37,27 +40,37 @@ export default function RankPage() {
         recency.
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[200px] flex-1">
-          <label className="mb-1 block text-sm font-medium">Query</label>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <Label htmlFor="rank-query">Query</Label>
+        <div className="flex flex-wrap items-end gap-2">
           <Input
+            id="rank-query"
+            className="min-w-[200px] flex-1"
             placeholder="e.g. design systems, hiring, product feedback"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <Button type="submit" disabled={loading}>
+            {loading ? "Ranking…" : "Rank"}
+          </Button>
         </div>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Ranking…" : "Rank"}
-        </Button>
       </form>
 
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {error}
+      {error && <Alert variant="destructive">{error}</Alert>}
+
+      {loading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-lg border bg-muted/50"
+              aria-hidden
+            />
+          ))}
         </div>
       )}
 
-      {result && (
+      {result && !loading && (
         <Card>
           <CardHeader>
             <CardTitle>Results for &quot;{result.query}&quot;</CardTitle>
@@ -65,22 +78,34 @@ export default function RankPage() {
           <CardContent>
             {result.ranked.length === 0 ? (
               <p className="text-muted-foreground">
-                No matches. Add people and facts, then try again.
+                No matches. Add people and facts with relevant expertise or interests, then try
+                another query.
               </p>
             ) : (
               <ol className="space-y-3">
                 {result.ranked.map((entry, i) => (
-                  <li key={entry.personId} className="flex gap-4 rounded-lg border p-3">
+                  <li
+                    key={entry.personId}
+                    className="flex gap-4 rounded-lg border p-3 transition-colors hover:bg-muted/30"
+                  >
                     <span className="font-mono text-sm text-muted-foreground">{i + 1}</span>
-                    <div className="flex-1">
-                      <a href={`/people/${entry.personId}`} className="font-medium hover:underline">
-                        View contact →
-                      </a>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/people/${entry.personId}`}
+                        className="font-medium hover:underline"
+                      >
+                        {entry.personName}
+                      </Link>
                       <p className="mt-1 text-sm text-muted-foreground">{entry.explanation}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         Score: {entry.score.toFixed(2)}
                       </p>
                     </div>
+                    <Link href={`/people/${entry.personId}`}>
+                      <Button variant="ghost" size="sm">
+                        View →
+                      </Button>
+                    </Link>
                   </li>
                 ))}
               </ol>

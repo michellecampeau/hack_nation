@@ -65,6 +65,7 @@ export interface RankRequest {
 
 export interface RankedEntry {
   personId: string;
+  personName: string;
   score: number;
   explanation: string;
 }

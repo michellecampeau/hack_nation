@@ -38,6 +38,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### 4. Testing
+
+See **[TESTING.md](TESTING.md)** for manual UI flow, API (curl) checks, Prisma Studio, and optional unit tests.
+
 ## Available Scripts
 
 | Script                 | Description                  |
