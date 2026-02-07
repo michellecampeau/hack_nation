@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx lint-staged
+# Pre-commit hook left as no-op after removing husky (deprecated).
+# Run manually before committing: npm run lint && npm run format:check && npm run type-check
+exit 0

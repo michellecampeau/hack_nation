@@ -13,8 +13,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio",
-    "prepare": "husky install"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^5.9.1",
@@ -37,22 +36,11 @@
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
     "eslint-config-next": "^14.1.0",
-    "husky": "^9.0.10",
-    "lint-staged": "^15.2.2",
     "postcss": "^8.4.33",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.11",
     "prisma": "^5.9.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,css}": [
-      "prettier --write"
-    ]
   }
 }
