@@ -6,12 +6,81 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-// Example custom types - uncomment and modify as needed
-// export interface Post {
-//   id: string;
-//   title: string;
-//   content: string;
-//   published: boolean;
-//   createdAt: Date;
-//   updatedAt: Date;
-// }
+// --- AI Chief of Staff ---
+
+export const RELATIONSHIP_STATES = ["ok", "warm_up", "do_not_contact"] as const;
+export const FACT_TYPES = [
+  "expertise",
+  "interest",
+  "shared_context",
+  "preference",
+  "relationship_status",
+  "logistics",
+] as const;
+export const FACT_AUTHORS = ["me", "them", "inferred"] as const;
+export const FACT_SOURCE_TYPES = ["manual", "whatsapp", "gmail"] as const;
+
+export type RelationshipState = (typeof RELATIONSHIP_STATES)[number];
+export type FactType = (typeof FACT_TYPES)[number];
+export type FactAuthor = (typeof FACT_AUTHORS)[number];
+export type FactSourceType = (typeof FACT_SOURCE_TYPES)[number];
+
+export interface PersonRecord {
+  id: string;
+  name: string;
+  primaryEmail: string | null;
+  phone: string | null;
+  organization: string | null;
+  role: string | null;
+  tags: string[] | null;
+  relationshipState: string;
+  lastContacted: Date | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FactRecord {
+  id: string;
+  personId: string;
+  type: string;
+  value: string;
+  author: string;
+  confidence: number;
+  timestamp: Date;
+  sourceType: string;
+  sourceRef: string | null;
+  createdAt: Date;
+}
+
+export interface PersonWithFacts extends PersonRecord {
+  facts: FactRecord[];
+}
+
+export interface RankRequest {
+  query: string;
+  relationshipState?: string;
+  tags?: string[];
+}
+
+export interface RankedEntry {
+  personId: string;
+  score: number;
+  explanation: string;
+}
+
+export interface RankResponse {
+  ranked: RankedEntry[];
+  query: string;
+}
+
+export interface ComposeRequest {
+  personId: string;
+  goal?: string;
+}
+
+export interface ComposeResponse {
+  bio: string;
+  connectionPoints: string[];
+  message: string;
+}

@@ -19,6 +19,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  people        Person[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -56,6 +57,51 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// --- AI Chief of Staff: Person, Fact, Event ---
+// SQLite does not support Prisma enums; use String, validate with Zod (relationshipState, fact type, etc.)
+
+model Person {
+  id                String    @id @default(cuid())
+  name              String
+  primaryEmail      String?
+  phone             String?
+  organization      String?
+  role              String?
+  tags              String?   // JSON array of strings
+  relationshipState String    @default("ok") // ok | warm_up | do_not_contact
+  lastContacted     DateTime?
+  notes             String?
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  facts             Fact[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Fact {
+  id         String   @id @default(cuid())
+  personId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type       String   // expertise | interest | shared_context | preference | relationship_status | logistics
+  value      String
+  author     String   @default("me") // me | them | inferred
+  confidence Float   @default(1)
+  timestamp  DateTime @default(now())
+  sourceType String   @default("manual") // manual | whatsapp | gmail
+  sourceRef  String?
+  createdAt  DateTime @default(now())
+}
+
+model Event {
+  id           String   @id @default(cuid())
+  type         String   // message | email | meeting | group
+  channel      String   @default("manual") // manual | whatsapp | gmail
+  timestamp    DateTime @default(now())
+  participants String?  // JSON array of personIds
+  contentRef   String?
+  createdAt    DateTime @default(now())
 }
 
 // Add your custom models below this line

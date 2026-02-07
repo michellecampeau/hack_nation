@@ -42,6 +42,13 @@ export async function apiPut<T = unknown>(url: string, data: unknown): Promise<T
   });
 }
 
+export async function apiPatch<T = unknown>(url: string, data: unknown): Promise<T> {
+  return fetcher<T>(url, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiDelete<T = unknown>(url: string): Promise<T> {
   return fetcher<T>(url, { method: "DELETE" });
 }
