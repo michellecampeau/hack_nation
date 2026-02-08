@@ -82,6 +82,7 @@ model Person {
   userId            String?
   user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   facts             Fact[]
+  messages          Message[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -101,13 +102,27 @@ model Fact {
 }
 
 model Event {
-  id           String   @id @default(cuid())
-  type         String   // message | email | meeting | group
-  channel      String   @default("manual") // manual | whatsapp | gmail
-  timestamp    DateTime @default(now())
-  participants String?  // JSON array of personIds
+  id           String    @id @default(cuid())
+  type         String    // message | email | meeting | group
+  channel      String    @default("manual") // manual | whatsapp | gmail
+  timestamp    DateTime  @default(now())
+  participants String?   // JSON array of personIds
   contentRef   String?
-  createdAt    DateTime @default(now())
+  messages     Message[]
+  createdAt    DateTime  @default(now())
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  personId    String
+  person      Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  eventId     String?
+  event       Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  content     String
+  timestamp   DateTime  @default(now())
+  channel     String    @default("whatsapp") // whatsapp | gmail | manual
+  sourceGroup String?
+  createdAt   DateTime  @default(now())
 }
 
 // Add your custom models below this line

@@ -52,3 +52,17 @@ export async function apiPatch<T = unknown>(url: string, data: unknown): Promise
 export async function apiDelete<T = unknown>(url: string): Promise<T> {
   return fetcher<T>(url, { method: "DELETE" });
 }
+
+export async function apiPostFormData<T = unknown>(
+  url: string,
+  formData: FormData
+): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, `API error: ${response.statusText}`);
+  }
+  return response.json() as Promise<T>;
+}

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
-import { apiGet, apiPost, apiDelete, ApiError } from "@/lib/utils/api";
+import { apiGet, apiPost, apiDelete, apiPostFormData, ApiError } from "@/lib/utils/api";
 import { parseFileToContacts, type ImportRow } from "@/lib/import/parse-file";
 import type { PersonRecord } from "@/types";
 import { RELATIONSHIP_STATES } from "@/types";
@@ -50,7 +50,9 @@ export default function PeoplePage() {
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [whatsappImporting, setWhatsappImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const whatsappInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -151,6 +153,45 @@ export default function PeoplePage() {
       .catch(() => setImportError("Could not parse file. Use CSV, JSON, or vCard (.vcf)."));
   };
 
+  const handleWhatsAppImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setWhatsappImporting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      // Derive group name from filename: "WhatsApp Chat - Group Name.txt" or "WhatsApp Chat - Group Name - General.txt"
+      const filenameMatch = file.name.match(/^WhatsApp Chat - (.+?)\.txt$/i);
+      if (filenameMatch?.[1]) {
+        formData.append("groupName", filenameMatch[1].trim());
+      }
+      const res = await apiPostFormData<{
+        created: number;
+        participants: number;
+        messages: number;
+        factsExtracted?: boolean;
+      }>("/api/ingest/whatsapp", formData);
+      const factsNote =
+        res.factsExtracted === true
+          ? " Facts extracted from messages (set OPENAI_API_KEY to enable)."
+          : res.factsExtracted === false
+            ? " Set OPENAI_API_KEY and re-import to extract facts from messages."
+            : "";
+      setSuccess(
+        `Imported WhatsApp chat: ${res.created} people added from ${res.participants} participants (${res.messages} messages).${factsNote}`
+      );
+      setTimeout(() => setSuccess(null), 5000);
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to import WhatsApp chat");
+    } finally {
+      setWhatsappImporting(false);
+    }
+  };
+
   const handleDeleteAll = async () => {
     if (!confirm("Delete all contacts? This cannot be undone.")) return;
     setDeletingAll(true);
@@ -222,6 +263,20 @@ export default function PeoplePage() {
             className="hidden"
             onChange={handleImportFile}
           />
+          <input
+            ref={whatsappInputRef}
+            type="file"
+            accept=".txt"
+            className="hidden"
+            onChange={handleWhatsAppImport}
+          />
+          <Button
+            variant="outline"
+            disabled={whatsappImporting}
+            onClick={() => whatsappInputRef.current?.click()}
+          >
+            {whatsappImporting ? "Importing…" : "Import WhatsApp"}
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             Import
           </Button>

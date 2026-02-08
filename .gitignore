@@ -70,3 +70,6 @@ venv/
 # Temporary files
 tmp/
 temp/
+
+# WhatsApp exports (optional; keep chat data local)
+WhatsApp_GSB*.txt

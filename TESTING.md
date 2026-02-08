@@ -131,6 +131,26 @@ CI already runs these plus Docker build.
 
 ---
 
+## 5. WhatsApp import and facts
+
+- **Facts from chat:** Message significance (expertise, interests, shared context) is extracted only when `OPENAI_API_KEY` is set. If you imported a chat without it, no facts were created. Re-uploading the same chat will **append** messages and run extraction (new facts added); you do **not** need to delete contacts.
+- **API response:** After import, the response includes `factsExtracted: true` when the key was set and extraction ran; otherwise `factsExtracted: false`.
+
+---
+
+## 6. Unit tests (Vitest)
+
+Install and run parser tests (uses `_chat.txt` in project root):
+
+```bash
+npm install
+npm run test
+```
+
+Tests live in `src/lib/ingestion/__tests__/parse-whatsapp.test.ts` and validate WhatsApp parsing: participants, message count, first/last message, multi-line messages, and optional group name.
+
+---
+
 ## Optional: unit test for ranking
 
 The ranking logic in `src/lib/ranking/rank.ts` is a pure function. You can add a test runner (e.g. Vitest) and a test that passes mock people and a query and asserts the order and that explanations exist. See the plan’s “Testing as you go” section for the idea.

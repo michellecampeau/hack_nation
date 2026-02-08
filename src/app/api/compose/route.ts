@@ -79,7 +79,8 @@ function buildComposePrompt(
   goal?: string,
   format: "email" | "text" = "email",
   refinement?: string,
-  originBlock?: string
+  originBlock?: string,
+  messageContextBlock?: string
 ): string {
   const factsBlock =
     facts.length > 0 ? facts.map((f) => `- ${f.type}: ${f.value}`).join("\n") : "(none)";
@@ -100,6 +101,13 @@ You (the sender) — use for tone and framing:
 ${originBlock}
 Respect Origin preferences (e.g. brevity, warm intros) and constraints (softer tone where relevant).` :
       "";
+  const messageContextSection =
+    messageContextBlock?.trim() ?
+      `
+
+Recent message context from this contact (use for personal context, topics they care about):
+${messageContextBlock}` :
+      "";
 
   return `You are helping prepare a thoughtful, human outreach to a contact. Use ONLY the information provided below. Do not invent or assume any details about their career, industry, work experience, or background that are not explicitly stated. If something is not mentioned, do not include it in the bio or message.
 ${originSection}
@@ -108,14 +116,16 @@ Contact profile (use only this information):
 ${profileBlock}
 
 Known facts about the contact (expertise, interests, shared context — use only these):
-${factsBlock}${goalLine}
+${factsBlock}${messageContextSection}${goalLine}
 
-Produce a short bio, 2-4 connection points (why reach out now / what you have in common), and one outreach message. Be specific and warm; only reference details that appear above.
+Produce a short bio of THE CONTACT (the person we are reaching out to), 2-4 connection points (why reach out now / what you have in common), and one outreach message. Be specific and warm; only reference details that appear above.
+
+CRITICAL — Bio: The "bio" must describe THE CONTACT (the recipient), never the sender. Use only the "Contact profile" and "Known facts about the contact" sections. Do not summarize the Origin/sender in the bio.
 
 CRITICAL for connection points: They must reflect GENUINE overlap between the sender's interests (from Origin) and the contact's interests/profile. Do NOT claim to share an interest that only the contact has. Only mention shared interests when BOTH the Origin block and the Contact profile explicitly include that interest. If there is no overlap, use other connection points (e.g. shared context, goal alignment, mutual connections) or keep it general—never fabricate shared interests.${refinementLine} ${formatInstruction}
 
 Respond with a single JSON object with exactly these keys (all strings; connectionPoints is an array of strings):
-- "bio": 1-2 sentence summary of who they are based ONLY on the profile and facts above (include interests, hometown, organization, etc. only if listed)
+- "bio": 1-2 sentence summary of THE CONTACT (the person we are reaching out to), based ONLY on the Contact profile and Known facts about the contact above. Never describe the sender/Origin in the bio.
 - "connectionPoints": array of 2-4 short bullets or sentences—only include shared interests when both Origin and contact have them; do not assume or invent overlap
 - "message": the full outreach message, formatted as requested above`;
 }
@@ -143,7 +153,7 @@ export async function POST(request: Request) {
     }
     const { personId, goal, format = "email", refinement } = parsed.data;
 
-    const [person, origin] = await Promise.all([
+    const [person, origin, recentMessages] = await Promise.all([
       prisma.person.findUnique({
         where: { id: personId },
         include: { facts: true },
@@ -152,10 +162,26 @@ export async function POST(request: Request) {
         where: { isOrigin: true },
         include: { facts: true },
       }),
+      // PrismaClient.message (Message model) – cast for TS when client types are stale
+      (prisma as unknown as { message: { findMany: (args: unknown) => Promise<{ content: string }[]> } }).message.findMany({
+        where: { personId, content: { not: "" } },
+        orderBy: { timestamp: "desc" },
+        take: 3,
+      }),
     ]);
     if (!person) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
+
+    const messageContextBlock =
+      recentMessages.length > 0
+        ? recentMessages
+            .map((m: { content: string }) => m.content.trim())
+            .filter(Boolean)
+            .slice(0, 3)
+            .map((c: string) => `- "${c.slice(0, 200)}${c.length > 200 ? "…" : ""}"`)
+            .join("\n")
+        : undefined;
 
     const profileBlock = buildProfileBlock(person);
     const originInterests = origin?.interests
@@ -175,16 +201,17 @@ export async function POST(request: Request) {
             role: origin.role,
             notes: origin.notes,
             interests: originInterests,
-            facts: origin.facts.map((f) => ({ type: f.type, value: f.value })),
+            facts: origin.facts.map((f: { type: string; value: string }) => ({ type: f.type, value: f.value })),
           })
         : undefined;
     const prompt = buildComposePrompt(
       profileBlock,
-      person.facts.map((f) => ({ type: f.type, value: f.value })),
+      person.facts.map((f: { type: string; value: string }) => ({ type: f.type, value: f.value })),
       goal,
       format,
       refinement,
-      originBlock
+      originBlock,
+      messageContextBlock
     );
 
     const openai = new OpenAI({ apiKey });

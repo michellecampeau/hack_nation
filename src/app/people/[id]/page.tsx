@@ -43,7 +43,6 @@ export default function PersonDetailPage() {
   const [factForm, setFactForm] = useState({ type: "expertise" as string, value: "" });
   const [factSubmitting, setFactSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [linkingOrigin, setLinkingOrigin] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -132,21 +131,6 @@ export default function PersonDetailPage() {
     }
   };
 
-  const handleLinkToOrigin = async () => {
-    setLinkingOrigin(true);
-    setError(null);
-    try {
-      await apiPost("/api/origin/link", { personId: id });
-      setSuccess("Profile linked to Origin.");
-      load();
-      window.location.href = "/origin";
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to link to Origin");
-    } finally {
-      setLinkingOrigin(false);
-    }
-  };
-
   if (loading || !person) {
     return (
       <div className="space-y-4">
@@ -183,16 +167,6 @@ export default function PersonDetailPage() {
                   Edit Origin
                 </Button>
               </Link>
-            )}
-            {!person.isOrigin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLinkToOrigin}
-                disabled={linkingOrigin}
-              >
-                {linkingOrigin ? "Linking…" : "Link to Origin"}
-              </Button>
             )}
             {!person.isOrigin && (
               <Link href={`/compose?personId=${id}`}>

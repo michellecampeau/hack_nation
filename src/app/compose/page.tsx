@@ -186,7 +186,7 @@ function ComposeForm() {
     <div className="space-y-6">
       <PageHeader
         title="Extend"
-        description="Generate a short bio, connection points, and an outreach message for a contact. Uses your saved facts."
+        description="Generate a short bio, connection points, and an outreach message for a contact."
       />
 
       {loadingPeople ? (
