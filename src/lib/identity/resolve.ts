@@ -8,8 +8,11 @@ export function normalizePhone(s: string | null | undefined): string | null {
   if (!s || typeof s !== "string") return null;
   const digits = s.replace(/\D/g, "");
   if (digits.length < 7) return null;
-  const withPlus = digits.startsWith("1") && digits.length === 11 ? digits : digits;
-  return withPlus || null;
+  // US: canonicalize to 10 digits so "2025551234" and "12025551234" match
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+  return digits;
 }
 
 export function normalizeEmail(s: string | null | undefined): string | null {

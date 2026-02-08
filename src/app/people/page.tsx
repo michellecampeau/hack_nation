@@ -176,7 +176,7 @@ export default function PeoplePage() {
       }>("/api/ingest/whatsapp", formData);
       const factsNote =
         res.factsExtracted === true
-          ? " Facts extracted from messages (set OPENAI_API_KEY to enable)."
+          ? " Facts extracted from messages."
           : res.factsExtracted === false
             ? " Set OPENAI_API_KEY and re-import to extract facts from messages."
             : "";
