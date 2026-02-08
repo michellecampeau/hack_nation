@@ -110,6 +110,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const person = await prisma.person.findUnique({
+      where: { id },
+      select: { isOrigin: true },
+    });
+    if (!person) {
+      return NextResponse.json({ error: "Person not found" }, { status: 404 });
+    }
+    if (person.isOrigin) {
+      return NextResponse.json(
+        { error: "Cannot delete Origin. Unlink from Origin first." },
+        { status: 400 }
+      );
+    }
     await prisma.person.delete({ where: { id } });
     return NextResponse.json({ deleted: true });
   } catch (e) {

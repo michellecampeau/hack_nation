@@ -16,6 +16,34 @@ function parseJsonArray(raw: string | null | undefined): string[] {
   }
 }
 
+function buildOriginBlock(origin: {
+  name: string;
+  role?: string | null;
+  notes?: string | null;
+  interests?: string[] | null;
+  facts: Array<{ type: string; value: string }>;
+}): string {
+  const lines: string[] = [];
+  lines.push(`Name: ${origin.name}`);
+  if (origin.role?.trim()) lines.push(`Current focus/role: ${origin.role.trim()}`);
+  if (origin.notes?.trim()) lines.push(`About me: ${origin.notes.trim()}`);
+  const interests = origin.interests?.filter(Boolean) ?? [];
+  if (interests.length) lines.push(`Interests: ${interests.join(", ")}`);
+  const goals = origin.facts.filter((f) => f.type === "goal");
+  if (goals.length) {
+    lines.push(`Goals: ${goals.map((g) => g.value).join("; ")}`);
+  }
+  const prefs = origin.facts.filter((f) => f.type === "preference");
+  if (prefs.length) {
+    lines.push(`Preferences: ${prefs.map((p) => p.value).join("; ")}`);
+  }
+  const constraints = origin.facts.filter((f) => f.type === "constraint");
+  if (constraints.length) {
+    lines.push(`Constraints: ${constraints.map((c) => c.value).join("; ")}`);
+  }
+  return lines.join("\n");
+}
+
 function buildProfileBlock(person: {
   name: string;
   organization?: string | null;
@@ -50,7 +78,8 @@ function buildComposePrompt(
   facts: Array<{ type: string; value: string }>,
   goal?: string,
   format: "email" | "text" = "email",
-  refinement?: string
+  refinement?: string,
+  originBlock?: string
 ): string {
   const factsBlock =
     facts.length > 0 ? facts.map((f) => `- ${f.type}: ${f.value}`).join("\n") : "(none)";
@@ -63,19 +92,31 @@ function buildComposePrompt(
     format === "text"
       ? "Format the message as a short text message or DM: concise, casual, 1-3 short sentences. No subject line or email sign-off."
       : "Format the message as an email: clear subject line, 2-4 short paragraphs, appropriate greeting and sign-off.";
-  return `You are helping prepare a thoughtful, human outreach to a contact. Use ONLY the information provided below. Do not invent or assume any details about their career, industry, work experience, or background that are not explicitly stated. If something is not mentioned, do not include it in the bio or message.
+  const originSection =
+    originBlock?.trim() ?
+      `
 
-Profile (use only this information):
+You (the sender) — use for tone and framing:
+${originBlock}
+Respect Origin preferences (e.g. brevity, warm intros) and constraints (softer tone where relevant).` :
+      "";
+
+  return `You are helping prepare a thoughtful, human outreach to a contact. Use ONLY the information provided below. Do not invent or assume any details about their career, industry, work experience, or background that are not explicitly stated. If something is not mentioned, do not include it in the bio or message.
+${originSection}
+
+Contact profile (use only this information):
 ${profileBlock}
 
-Known facts (expertise, interests, shared context — use only these):
+Known facts about the contact (expertise, interests, shared context — use only these):
 ${factsBlock}${goalLine}
 
-Produce a short bio, 2-4 connection points (why reach out now / what you have in common), and one outreach message. Be specific and warm; only reference details that appear above.${refinementLine} ${formatInstruction}
+Produce a short bio, 2-4 connection points (why reach out now / what you have in common), and one outreach message. Be specific and warm; only reference details that appear above.
+
+CRITICAL for connection points: They must reflect GENUINE overlap between the sender's interests (from Origin) and the contact's interests/profile. Do NOT claim to share an interest that only the contact has. Only mention shared interests when BOTH the Origin block and the Contact profile explicitly include that interest. If there is no overlap, use other connection points (e.g. shared context, goal alignment, mutual connections) or keep it general—never fabricate shared interests.${refinementLine} ${formatInstruction}
 
 Respond with a single JSON object with exactly these keys (all strings; connectionPoints is an array of strings):
 - "bio": 1-2 sentence summary of who they are based ONLY on the profile and facts above (include interests, hometown, organization, etc. only if listed)
-- "connectionPoints": array of 2-4 short bullets or sentences drawn from the information above
+- "connectionPoints": array of 2-4 short bullets or sentences—only include shared interests when both Origin and contact have them; do not assume or invent overlap
 - "message": the full outreach message, formatted as requested above`;
 }
 
@@ -102,21 +143,48 @@ export async function POST(request: Request) {
     }
     const { personId, goal, format = "email", refinement } = parsed.data;
 
-    const person = await prisma.person.findUnique({
-      where: { id: personId },
-      include: { facts: true },
-    });
+    const [person, origin] = await Promise.all([
+      prisma.person.findUnique({
+        where: { id: personId },
+        include: { facts: true },
+      }),
+      prisma.person.findFirst({
+        where: { isOrigin: true },
+        include: { facts: true },
+      }),
+    ]);
     if (!person) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     const profileBlock = buildProfileBlock(person);
+    const originInterests = origin?.interests
+      ? (() => {
+          try {
+            const arr = typeof origin.interests === "string" ? JSON.parse(origin.interests) : origin.interests;
+            return Array.isArray(arr) ? arr.map(String).filter(Boolean) : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+    const originBlock =
+      origin
+        ? buildOriginBlock({
+            name: origin.name,
+            role: origin.role,
+            notes: origin.notes,
+            interests: originInterests,
+            facts: origin.facts.map((f) => ({ type: f.type, value: f.value })),
+          })
+        : undefined;
     const prompt = buildComposePrompt(
       profileBlock,
       person.facts.map((f) => ({ type: f.type, value: f.value })),
       goal,
       format,
-      refinement
+      refinement,
+      originBlock
     );
 
     const openai = new OpenAI({ apiKey });

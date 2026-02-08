@@ -16,6 +16,8 @@ export const FACT_TYPES = [
   "preference",
   "relationship_status",
   "logistics",
+  "goal",
+  "constraint",
 ] as const;
 export const FACT_AUTHORS = ["me", "them", "inferred"] as const;
 export const FACT_SOURCE_TYPES = ["manual", "whatsapp", "gmail"] as const;
@@ -27,6 +29,7 @@ export type FactSourceType = (typeof FACT_SOURCE_TYPES)[number];
 
 export interface PersonRecord {
   id: string;
+  isOrigin?: boolean;
   name: string;
   primaryEmail: string | null;
   phone: string | null;
@@ -73,6 +76,7 @@ export interface RankedEntry {
   personName: string;
   score: number;
   explanation: string;
+  originInfluence?: string[];
 }
 
 export interface RankResponse {

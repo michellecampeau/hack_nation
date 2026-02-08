@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Chief of Staff - Personal relationship assistant",
+  title: "Bridge - Personal relationship assistant",
   description: "Prioritize and nurture your network with context-aware outreach",
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Navbar />
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl px-6 py-10 md:px-8 md:py-14">{children}</main>
       </body>
     </html>
   );

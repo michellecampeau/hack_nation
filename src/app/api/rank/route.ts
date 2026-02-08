@@ -17,9 +17,18 @@ export async function POST(request: Request) {
     const { query, relationshipState: filterState, tags: filterTags } = parsed.data;
 
     const people = await prisma.person.findMany({
-      where: filterState ? { relationshipState: filterState } : undefined,
+      where: {
+        isOrigin: false,
+        ...(filterState ? { relationshipState: filterState } : {}),
+      },
       include: { facts: true },
     });
+
+    const origin = await prisma.person.findFirst({
+      where: { isOrigin: true },
+      include: { facts: true },
+    });
+    const originFacts = origin?.facts ?? [];
 
     const filtered =
       filterTags && filterTags.length > 0
@@ -65,7 +74,7 @@ export async function POST(request: Request) {
       };
     });
 
-    const ranked = rankPeople(peopleWithFacts, query);
+    const ranked = rankPeople(peopleWithFacts, query, originFacts.map((f) => ({ type: f.type, value: f.value })));
     return NextResponse.json({ ranked, query });
   } catch (e) {
     console.error(e);

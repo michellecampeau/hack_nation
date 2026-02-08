@@ -11,7 +11,9 @@ const factAuthorSchema = z.enum(FACT_AUTHORS);
 
 export const createPersonSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  primaryEmail: z.string().email().optional().or(z.literal("")),
+  primaryEmail: z
+    .union([z.literal(""), z.string().email("Invalid email format")])
+    .optional(),
   phone: z.string().optional(),
   organization: z.string().optional(),
   role: z.string().optional(),
@@ -42,6 +44,32 @@ export const rankRequestSchema = z.object({
   relationshipState: relationshipStateSchema.optional(),
   tags: z.array(z.string()).optional(),
 });
+
+export const originLinkSchema = z.object({
+  personId: z.string().min(1, "personId is required"),
+});
+export type OriginLinkInput = z.infer<typeof originLinkSchema>;
+
+export const originUpdateSchema = z.object({
+  person: z
+    .object({
+      name: z.string().min(1).optional(),
+      role: z.string().optional(),
+      notes: z.string().optional(),
+      interests: z.array(z.string()).optional(),
+    })
+    .optional(),
+  facts: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        type: z.enum(["goal", "preference", "constraint"]),
+        value: z.string().min(1),
+      })
+    )
+    .optional(),
+});
+export type OriginUpdateInput = z.infer<typeof originUpdateSchema>;
 
 export const composeRequestSchema = z.object({
   personId: z.string().min(1, "personId is required"),

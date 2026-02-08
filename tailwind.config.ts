@@ -9,6 +9,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -43,11 +46,34 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        bridge: {
+          line: "hsl(var(--bridge-line))",
+          node: "hsl(var(--bridge-node))",
+          "node-subtle": "hsl(var(--bridge-node-subtle))",
+          "surface-elevated": "hsl(var(--bridge-surface-elevated))",
+        },
       },
       borderRadius: {
-        lg: "var(--radius)",
+        lg: "calc(var(--radius))",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "calc(0.375rem - 4px)",
+      },
+      spacing: {
+        element: "1rem",
+        component: "2rem",
+        section: "4rem",
+      },
+      maxWidth: {
+        "2xl": "1400px",
+      },
+      keyframes: {
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 0.4s ease-out",
       },
     },
   },

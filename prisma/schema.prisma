@@ -64,6 +64,7 @@ model VerificationToken {
 
 model Person {
   id                String    @id @default(cuid())
+  isOrigin          Boolean   @default(false) // exactly one Person has true; represents user (Michelle Campeau)
   name              String
   primaryEmail      String?
   phone             String?

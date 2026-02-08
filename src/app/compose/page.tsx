@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +54,7 @@ function ComposeForm() {
     (async () => {
       try {
         const res = await apiGet<PeopleResponse>("/api/people");
-        const list = res.data ?? [];
+        const list = (res.data ?? []).filter((p) => !p.isOrigin);
         if (!cancelled) {
           setPeople(list);
           const initialId =
@@ -65,7 +66,7 @@ function ComposeForm() {
           setInputValue(initialPerson?.name ?? "");
         }
       } catch {
-        if (!cancelled) setError("Failed to load people");
+        if (!cancelled) setError("Failed to load nodes");
       } finally {
         if (!cancelled) setLoadingPeople(false);
       }
@@ -95,7 +96,7 @@ function ComposeForm() {
     }
   }, [personId, loadingPeople]);
 
-  // Persist result so "Back to compose" can restore it
+  // Persist result so "Back to extend" can restore it
   useEffect(() => {
     if (!result || !personId) return;
     try {
@@ -141,7 +142,7 @@ function ComposeForm() {
       setResult(res);
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : "Failed to compose (check OPENAI_API_KEY?)"
+        e instanceof ApiError ? e.message : "Failed to extend (check OPENAI_API_KEY?)"
       );
     } finally {
       setLoading(false);
@@ -172,7 +173,7 @@ function ComposeForm() {
       setRefinement("");
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : "Failed to update (check OPENAI_API_KEY?)"
+        e instanceof ApiError ? e.message : "Failed to extend (check OPENAI_API_KEY?)"
       );
     } finally {
       setUpdating(false);
@@ -183,11 +184,10 @@ function ComposeForm() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Compose</h1>
-      <p className="text-muted-foreground">
-        Generate a short bio, connection points, and an outreach message for a contact. Uses your
-        saved facts.
-      </p>
+      <PageHeader
+        title="Extend"
+        description="Generate a short bio, connection points, and an outreach message for a contact. Uses your saved facts."
+      />
 
       {loadingPeople ? (
         <div className="space-y-2">
@@ -196,9 +196,9 @@ function ComposeForm() {
         </div>
       ) : people.length === 0 ? (
         <Alert variant="default">
-          Add people and facts first, then come back here.
+          Add nodes and facts first, then come back here.
           <Link href="/people" className="ml-2 font-medium underline">
-            Add people →
+            Add nodes →
           </Link>
         </Alert>
       ) : (

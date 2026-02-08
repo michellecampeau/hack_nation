@@ -28,6 +28,7 @@ function toDbRow(data: PersonCreateData) {
       : "ok";
   return {
     name: data.name,
+    isOrigin: false,
     primaryEmail: data.primaryEmail === "" ? null : (data.primaryEmail ?? null),
     phone: data.phone ?? null,
     organization: data.organization ?? null,

@@ -24,17 +24,26 @@ const RELATIONSHIP_WEIGHT: Record<string, number> = {
 const MAX_DAYS_RECENCY = 365;
 const MIN_SCORE = 2;
 
+const ORIGIN_GOAL_BOOST = 1.5;
+const ORIGIN_PREFERENCE_PENALTY = 0.8;
+const ORIGIN_PREFERENCE_BOOST = 1.2;
 /**
  * Deterministic ranking: keyword match on facts + profile (interests, notes, etc.) + recency + relationship_state.
+ * Origin facts (goals, preferences, constraints) influence scoring and explainability.
  * Excludes do_not_contact. Returns all people with score > 2, sorted by score descending.
  */
 export function rankPeople(
   people: PersonWithFacts[],
-  query: string
+  query: string,
+  originFacts: Array<{ type: string; value: string }> = []
 ): RankedEntry[] {
   const q = query.toLowerCase().trim();
   const terms = q.split(/\s+/).filter(Boolean);
   const now = new Date();
+
+  const originGoals = originFacts.filter((f) => f.type === "goal");
+  const originPreferences = originFacts.filter((f) => f.type === "preference");
+  const originConstraints = originFacts.filter((f) => f.type === "constraint");
 
   const scored = people
     .filter((p) => p.relationshipState !== "do_not_contact")
@@ -44,7 +53,23 @@ export function rankPeople(
 
       let matchScore = 0;
       const matchReasons: string[] = [];
+      const originInfluence: string[] = [];
 
+      // Constraint: exclude if person's name contains any name-like part of the constraint
+      // e.g. "avoid John" excludes "John Smith"; "exclude Jane Doe" excludes "Jane Doe"
+      const personNameLower = person.name.toLowerCase();
+      const CONSTRAINT_STOP_WORDS = new Set([
+        "avoid", "don't", "dont", "exclude", "contact", "intro", "intros",
+        "without", "warm", "context", "the", "a", "an", "do", "not", "no",
+      ]);
+      const constraintExcludes = originConstraints.some((c) => {
+        const words = c.value.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+        const nameLikeWords = words.filter((w) => !CONSTRAINT_STOP_WORDS.has(w.replace(/[^a-z]/g, "")));
+        return nameLikeWords.some((word) => personNameLower.includes(word));
+      });
+      if (constraintExcludes) return null;
+
+      // Keyword match on facts
       for (const fact of person.facts) {
         const valueLower = fact.value.toLowerCase();
         for (const term of terms) {
@@ -55,6 +80,7 @@ export function rankPeople(
         }
       }
 
+      // Keyword match on profile
       const profileChunks = person.profileChunks ?? [];
       for (const chunk of profileChunks) {
         const textLower = chunk.text.toLowerCase();
@@ -67,6 +93,21 @@ export function rankPeople(
         }
       }
 
+      // Goal alignment: boost if candidate facts/profile overlap with Origin goals
+      const allCandidateText = [
+        ...person.facts.map((f) => f.value),
+        ...profileChunks.map((c) => c.text),
+      ].join(" ").toLowerCase();
+      for (const goal of originGoals) {
+        const goalWords = goal.value.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+        const overlap = goalWords.some((w) => allCandidateText.includes(w));
+        if (overlap) {
+          matchScore += ORIGIN_GOAL_BOOST;
+          originInfluence.push(`Aligned with your goal: ${goal.value.slice(0, 60)}${goal.value.length > 60 ? "…" : ""}`);
+        }
+      }
+
+      // Recency
       let recencyScore = 1;
       let recencyLabel = "No recent contact";
       if (person.lastContacted) {
@@ -82,13 +123,53 @@ export function rankPeople(
         else recencyLabel = `Last contact ${Math.floor(days / 30)} months ago`;
       }
 
-      const score = (matchScore * 2 + recencyScore) * weight;
+      // Preference enforcement
+      let preferenceMultiplier = 1;
+      for (const pref of originPreferences) {
+        const v = pref.value.toLowerCase();
+        if (v.includes("avoid cold") || v.includes("avoid cold outreach")) {
+          if (person.relationshipState === "warm_up" || (person.lastContacted && recencyScore < 0.5)) {
+            preferenceMultiplier *= ORIGIN_PREFERENCE_PENALTY;
+            originInfluence.push(`Preference applied: ${pref.value.slice(0, 50)}…`);
+          }
+        }
+        if (v.includes("prefer warm") || v.includes("warm intro")) {
+          const hasSharedContext = person.facts.some((f) => f.type === "shared_context");
+          if (hasSharedContext) {
+            preferenceMultiplier *= ORIGIN_PREFERENCE_BOOST;
+            originInfluence.push(`Matches preference: ${pref.value.slice(0, 50)}…`);
+          }
+        }
+        if (v.includes("short") || v.includes("concise")) {
+          originInfluence.push(`Matches preference: ${pref.value.slice(0, 50)}…`);
+        }
+      }
+
+      // General constraint: "avoid intros without warm context" → penalize when no shared_context
+      for (const c of originConstraints) {
+        const v = c.value.toLowerCase();
+        if (v.includes("without warm") || v.includes("warm context")) {
+          const hasSharedContext = person.facts.some((f) => f.type === "shared_context");
+          if (!hasSharedContext) {
+            preferenceMultiplier *= ORIGIN_PREFERENCE_PENALTY;
+            originInfluence.push(`Constraint: ${c.value.slice(0, 50)}…`);
+          }
+        }
+      }
+
+      let score = (matchScore * 2 + recencyScore) * weight * preferenceMultiplier;
       const explanation =
         matchReasons.length > 0
           ? [matchReasons[0], recencyLabel].join(". ")
           : recencyLabel;
 
-      return { personId: person.id, personName: person.name, score, explanation };
+      return {
+        personId: person.id,
+        personName: person.name,
+        score,
+        explanation,
+        originInfluence: originInfluence.length > 0 ? originInfluence : undefined,
+      } as RankedEntry;
     })
     .filter((x): x is RankedEntry => x !== null);
 

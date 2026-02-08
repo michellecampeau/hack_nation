@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +59,7 @@ export default function PeoplePage() {
       const res = await apiGet<PeopleResponse>("/api/people");
       setPeople(res.data ?? []);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load people");
+      setError(e instanceof ApiError ? e.message : "Failed to load nodes");
     } finally {
       setLoading(false);
     }
@@ -209,9 +210,11 @@ export default function PeoplePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">People</h1>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title="Nodes"
+        description="Add and edit contacts, relationship state, and facts."
+        actions={
+          <div className="flex flex-wrap gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -235,8 +238,9 @@ export default function PeoplePage() {
               {deletingAll ? "Deleting…" : "Delete all"}
             </Button>
           )}
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {error && <Alert variant="destructive">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
@@ -494,7 +498,7 @@ export default function PeoplePage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             {people.length === 0 ? (
-              <>No people yet. Click &quot;Add person&quot; to add your first contact.</>
+              <>No nodes yet. Click &quot;Add person&quot; to add your first contact.</>
             ) : (
               <>No one matches &quot;{search}&quot;. Try a different search.</>
             )}
@@ -505,8 +509,8 @@ export default function PeoplePage() {
           {filteredPeople.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/people/${p.id}`}
-                className="block rounded-lg border bg-card p-4 transition-colors hover:border-muted-foreground/20 hover:bg-muted/50"
+                href={p.isOrigin ? "/origin" : `/people/${p.id}`}
+                className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
               >
                 <div className="flex items-center justify-between">
                   <div>

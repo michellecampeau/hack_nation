@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureOrigin } from "@/lib/origin";
 import { createPersonSchema } from "@/lib/schemas/chief-of-staff";
 import { safeValidateData } from "@/lib/utils/validators";
 
@@ -25,12 +26,21 @@ function personToJson(p: Record<string, unknown>) {
 
 export async function GET() {
   try {
+    await ensureOrigin();
     const people = await prisma.person.findMany({
       orderBy: { updatedAt: "desc" },
       include: { _count: { select: { facts: true } } },
     });
+    const origin = people.find((p) => p.isOrigin);
+    const originNameNorm = (origin?.name ?? "").toLowerCase().trim();
+    const filtered = originNameNorm
+      ? people.filter((p) => {
+          if (p.isOrigin) return true;
+          return (p.name ?? "").toLowerCase().trim() !== originNameNorm;
+        })
+      : people;
     return NextResponse.json({
-      data: people.map((p) => {
+      data: filtered.map((p) => {
         const { _count, ...rest } = p;
         return { ...personToJson(rest), factCount: _count?.facts ?? 0 };
       }),
@@ -55,6 +65,7 @@ export async function POST(request: Request) {
     const person = await prisma.person.create({
       data: {
         name: data.name,
+        isOrigin: false,
         primaryEmail: data.primaryEmail === "" ? null : data.primaryEmail ?? null,
         phone: data.phone ?? null,
         organization: data.organization ?? null,
@@ -80,7 +91,7 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   try {
-    await prisma.person.deleteMany({});
+    await prisma.person.deleteMany({ where: { isOrigin: false } });
     return NextResponse.json({ deleted: true });
   } catch (e) {
     console.error(e);

@@ -32,8 +32,8 @@ export default function PersonDetailPage() {
     returnTo === "/rank"
       ? "Back to search results"
       : returnTo === "/compose"
-        ? "Back to compose"
-        : "Back to People";
+        ? "Back to extend"
+        : "Back to Nodes";
   const [person, setPerson] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +43,7 @@ export default function PersonDetailPage() {
   const [factForm, setFactForm] = useState({ type: "expertise" as string, value: "" });
   const [factSubmitting, setFactSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [linkingOrigin, setLinkingOrigin] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -131,6 +132,21 @@ export default function PersonDetailPage() {
     }
   };
 
+  const handleLinkToOrigin = async () => {
+    setLinkingOrigin(true);
+    setError(null);
+    try {
+      await apiPost("/api/origin/link", { personId: id });
+      setSuccess("Profile linked to Origin.");
+      load();
+      window.location.href = "/origin";
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to link to Origin");
+    } finally {
+      setLinkingOrigin(false);
+    }
+  };
+
   if (loading || !person) {
     return (
       <div className="space-y-4">
@@ -160,12 +176,31 @@ export default function PersonDetailPage() {
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>{person.name}</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/compose?personId=${id}`}>
-              <Button variant="outline" size="sm">
-                Compose message
+          <div className="flex flex-wrap items-center gap-2">
+            {person.isOrigin && (
+              <Link href="/origin">
+                <Button variant="secondary" size="sm">
+                  Edit Origin
+                </Button>
+              </Link>
+            )}
+            {!person.isOrigin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLinkToOrigin}
+                disabled={linkingOrigin}
+              >
+                {linkingOrigin ? "Linking…" : "Link to Origin"}
               </Button>
-            </Link>
+            )}
+            {!person.isOrigin && (
+              <Link href={`/compose?personId=${id}`}>
+                <Button variant="outline" size="sm">
+                  Extend message
+                </Button>
+              </Link>
+            )}
             <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
               {editing ? "Cancel" : "Edit"}
             </Button>
@@ -370,7 +405,7 @@ export default function PersonDetailPage() {
           <CardTitle>Facts</CardTitle>
           <p className="text-sm text-muted-foreground">
             Things you know about this person (expertise, interests, shared context). Used for
-            ranking and compose.
+            ranking and extend.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

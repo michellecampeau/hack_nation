@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,7 @@ export default function RankPage() {
       setResult(null);
       apiPost<RankResponse>("/api/rank", { query: q.trim() })
         .then((res) => setResult(res))
-        .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to rank"))
+        .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to find edges"))
         .finally(() => setLoading(false));
     }
   }, [searchParams]);
@@ -43,7 +44,7 @@ export default function RankPage() {
       const res = await apiPost<RankResponse>("/api/rank", { query: query.trim() });
       setResult(res);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to rank");
+      setError(e instanceof ApiError ? e.message : "Failed to find edges");
     } finally {
       setLoading(false);
     }
@@ -51,11 +52,10 @@ export default function RankPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Rank</h1>
-      <p className="text-muted-foreground">
-        Find who to reach out to for a given topic or goal. Results are ordered by relevance and
-        recency.
-      </p>
+      <PageHeader
+        title="Edges"
+        description="Find who to reach out to for a given topic or goal. Results are ordered by relevance and recency."
+      />
 
       <form onSubmit={handleSubmit} className="space-y-2">
         <Label htmlFor="rank-query">Query</Label>
@@ -68,7 +68,7 @@ export default function RankPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <Button type="submit" disabled={loading}>
-            {loading ? "Ranking…" : "Rank"}
+            {loading ? "Finding…" : "Find"}
           </Button>
         </div>
       </form>
@@ -95,7 +95,7 @@ export default function RankPage() {
           <CardContent>
             {result.ranked.length === 0 ? (
               <p className="text-muted-foreground">
-                No matches. Add people and facts with relevant expertise or interests, then try
+                No matches. Add nodes and facts with relevant expertise or interests, then try
                 another query.
               </p>
             ) : (
@@ -114,6 +114,13 @@ export default function RankPage() {
                         {entry.personName}
                       </Link>
                       <p className="mt-1 text-sm text-muted-foreground">{entry.explanation}</p>
+                      {entry.originInfluence && entry.originInfluence.length > 0 && (
+                        <ul className="mt-1 list-inside list-disc text-xs text-muted-foreground">
+                          {entry.originInfluence.map((inf, j) => (
+                            <li key={j}>{inf}</li>
+                          ))}
+                        </ul>
+                      )}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         Score: {entry.score.toFixed(2)}
                       </p>
